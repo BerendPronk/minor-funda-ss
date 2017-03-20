@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="nl">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width">
+
+	<title>Funda SPA Prototype</title>
+
+	<!-- Custom elements -->
+	<link rel="import" href="./assets/components/funda-logo.html" />
+
+	<!-- Styles -->
+	<script src="https://use.typekit.net/pnh6wsp.js"></script>
+	<script>try{Typekit.load({ async: true });}catch(e){}</script>
+	<link rel="stylesheet" type="text/css" href="./assets/css/main.css">
+
+	<!-- Scripts -->
+	<script src="./assets/js/modules/template.js" defer></script>
+	<script src="./assets/js/modules/router.js" defer></script>
+	<script src="./assets/js/modules/search.js" defer></script>
+	<script src="./assets/js/modules/storage.js" defer></script>
+	<script src="./assets/js/modules/utils.js" defer></script>
+	<script src="./assets/js/config.js" defer></script>
+	<script src="./assets/js/app.js" defer></script>
+
+	<script id="__bs_script__">
+		//<![CDATA[
+		document.write("<script async src='/browser-sync/browser-sync-client.js?v=2.18.8'><\/script>".replace("HOST", location.hostname));
+		//]]>
+	</script>
+</head>
+	<header>
+		<section>
+			<funda-logo></funda-logo>
+			<span id="feedback"></span>
+		</section>
+
+		<form action="">
+			<fieldset>
+				<label for="search">Zoek woningen</label>
+				<input id="search" type="text" placeholder="Plaats, buurt, adres, et cetera" autofocus>
+				<ul id="suggestions"></ul>
+			</fieldset>
+			<fieldset id="filter">
+				<section class="filter-main">
+					<section class="filter-radio">
+						<input id="filterTypeBuy" type="radio" name="type" value="buy" checked>
+						<label for="filterTypeBuy" data-input="radio">
+							Koop
+						</label>
+						<input id="filterTypeRent" type="radio" name="type" value="rent">
+						<label for="filterTypeRent"  data-input="radio">
+							Huur
+						</label>
+					</section>
+					<input id="filterToggle" type="checkbox">
+					<label for="filterToggle" data-input="checkbox">
+						Prijs
+					</label>
+				</section>
+				<section class="filter-advanced">
+					<section class="filter-text">
+						<label for="filterPriceFrom">Prijs van</label>
+						<section class="filter-text-input">
+							<input id="filterPriceFrom" type="number" step="1000">
+						</section>
+					</section>
+					<section class="filter-text">
+						<label for="filterPriceTo">Prijs tot</label>
+						<section class="filter-text-input">
+							<input id="filterPriceTo" type="number" step="1000">
+						</section>
+					</section>
+				</section>
+			</fieldset>
+			<fieldset>
+				<button id="submit">Verzenden</button>
+			</fieldset>
+		</form>
+
+		<nav></nav>
+	</header>
+
+	<ul id="pages">
+		<li>
+			<section id="detail">
+				<ul id="breadcrumbs"></ul>
+
+				<h2></h2>
+				<h3></h3>
+
+				<section class="img-block">
+					<img>
+
+					<input>
+					<label></label>
+
+					<p id="detailPrice"></p>
+				</section>
+
+				<article></article>
+			</section>
+		</li>
+		<li>
+			<section id="resultaten">
+				<h2></h2>
+
+				<p id="resultAmount"></p>
+
+				<ul id="interests" class="hidden"></ul>
+
+				<ul id="results"></ul>
+
+				<p id="noResults"></p>
+			</section>
+		</li>
+		<li>
+			<section id="favorieten">
+				<h2></h2>
+
+				<section class="btn-block">
+					<button id="clearFavButton"></button>
+				</section>
+
+				<ul id="favorites"></ul>
+
+				<p id="noFavorites"></p>
+			</section>
+		</li>
+	</ul>
+
+	<footer role="presentation">
+		<ul id="mosaic"></ul>
+	</footer>
+</body>
+</html>
