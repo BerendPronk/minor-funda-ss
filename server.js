@@ -44,12 +44,15 @@ app.get('/', function(req, res) {
 
     if (req.session.username) {
         console.log('logged in as: ' + req.session.username)
+    } else {
+        console.log('not logged in')
     }
 
     // Makes a request to the funda API
     request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/limmen/&type=koop&pagesize=24', function (error, response, body) {
         respond(res, {
             page: 'splash',
+            session: req.session.username,
             data: response
         });
     });
@@ -59,15 +62,16 @@ app.get('/', function(req, res) {
 app
     .get('/user/register', function(req, res) {
         respond(res, {
-            page: 'user/register'
+            page: 'user/register',
+            session: req.session.username
         });
     })
     .post('/user/register', function(req, res) {
         req.getConnection(function(err, connection) {
 
 
-            connection.query('SELECT * FROM users', function(err, result) {
-                console.log(result);
+            connection.query('SELECT * FROM users', function(err, results) {
+                console.log(results);
             })
 
             var data = {
@@ -76,14 +80,14 @@ app
             }
             var passwordCopy = req.body.passwordcopy;
 
-            connection.query('SELECT * FROM users WHERE username = ?', [data.username], function(err, result) {
-                if (result.length > 0) {
+            connection.query('SELECT * FROM users WHERE username = ?', [data.username], function(err, results) {
+                if (results.length > 0) {
                     console.log('username already exists')
                     res.redirect('/user/register');
                 } else {
                     if (data.password === passwordCopy) {
                         if (data.username !== '' && data.password !== '') {
-                            connection.query('INSERT INTO users SET ?', [data], function(err, result) {
+                            connection.query('INSERT INTO users SET ?', [data], function(err, results) {
                                 console.log('Register successful!');
                                 res.redirect('/');
                             });
@@ -104,7 +108,8 @@ app
 app
     .get('/user/login', function(req, res) {
             respond(res, {
-                page: 'user/login'
+                page: 'user/login',
+                session: req.session.username
             });
         })
     app.post('/user/login', function(req, res) {
@@ -114,10 +119,10 @@ app
                 password: req.body.password
             }
 
-            connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [data.username, data.password], function(err, result) {
-                if (result.length > 0) {
+            connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [data.username, data.password], function(err, results) {
+                if (results.length > 0) {
                     // Set username as a session
-                    req.session.username = result[0].username;
+                    req.session.username = results[0].username;
                     req.session.save();
 
                     console.log('Login successful');
@@ -130,12 +135,20 @@ app
         });
     })
 
+// Route for logout
+app
+    .get('/user/logout', function(req, res) {
+        req.session.destroy();
+        res.redirect('/');
+    });
+
 // Route for results
 app.get('/results/*', function(req, res) {
     // Makes a request to the funda API
     request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/' + req.query.zo + '/&type=' + req.query.type + '&pagesize=25', function (error, response, body) {
         respond(res, {
             page: 'results',
+            session: req.session.username,
             data: response
         });
     });
@@ -147,6 +160,77 @@ app
         /*
             MySQL Connection to favorites table
         */
+        if (req.session.username) {
+            req.getConnection(function(err, connection) {
+                connection.query('SELECT * FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, results) {
+
+                    // Array that'll contain ...
+                    var favoritesData = [];
+
+                    /*
+
+                        INSERT BUY / RENT IN DATABASE AS WELL
+
+                    */
+
+                    // Retrieves ID of every saved favorite from database
+                    results.map(function(result) {
+                        // console.log(result.favorite_ID);
+
+                        request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + 'koop' + '/' + result.favorite_ID + '/', function (error, response, body) {
+                            var data = JSON.parse(body);
+
+                            function dataType() {
+                                if (data.Prijs.Koopprijs) {
+                                    return 'koop';
+                                } else {
+                                    return 'huur';
+                                }
+                            }
+
+                            function dataArea() {
+                                if (data.PerceelOppervlakte) {
+                                    return data.WoonOppervlakte + 'm² / ' + data.PerceelOppervlakte + 'm² • ' + data.AantalKamers + ' kamers';
+                                } else {
+                                    return data.WoonOppervlakte + 'm² ' + ' • ' + data.AantalKamers + ' kamers';
+                                }
+                            }
+
+                            function dataPrice() {
+                                if (data.Prijs.Koopprijs && !data.Prijs.Huurprijs) {
+                                    return '<strong>€ ' + numberWithPeriods(data.Prijs.Koopprijs) + ' <abbr title="Kosten Koper">k.k.</abbr></strong>';
+                                } else {
+                                    return '<strong>€ ' + numberWithPeriods(data.Prijs.Huurprijs) + ' <abbr title="Per maand">/mnd</abbr></strong>';
+                                }
+                            }
+
+                            favoritesData.push({
+                                id: data.InternalId,
+                                img: data.HoofdFoto,
+                                address: data.Adres,
+                                zipCity: data.Postcode + ', ' + data.Plaats,
+                                type: dataType(),
+                                price: dataPrice(),
+                                area: dataArea(),
+                                added: data.AangebodenSindsTekst
+                            });
+                        });
+                    })
+
+                    // Create a proper fallback
+                    setTimeout(function() {
+                        respond(res, {
+                            page: 'favorites',
+                            session: req.session.username,
+                            data: favoritesData
+                        });
+                    }, 500)
+                });
+            });
+        } else {
+            console.log('You need to be logged in first');
+            res.redirect('/user/login');
+        }
     })
     .get('/favorites/add/:id', function(req, res) {
         // Checks if user is logged in
@@ -154,9 +238,9 @@ app
             req.getConnection(function(err, connection) {
 
                 // Connects to database to check if item is already in favorites
-                connection.query('SELECT * FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, result) {
-                    if (result.length === 0) {
-                        connection.query('INSERT INTO favorites (user_ID, favorite_ID) VALUES ((SELECT ID FROM users WHERE username = ?), ?)', [req.session.username, req.params.id], function(err, result) {
+                connection.query('SELECT * FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, results) {
+                    if (results.length === 0) {
+                        connection.query('INSERT INTO favorites (user_ID, favorite_ID) VALUES ((SELECT ID FROM users WHERE username = ?), ?)', [req.session.username, req.params.id], function(err, results) {
                             console.log('Successfully added favorite!');
                             res.redirect('/');
                         });
@@ -177,6 +261,7 @@ app.get('/detail/:type/:id', function(req, res) {
     request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + req.params.type + '/' + req.params.id + '/', function (error, response, body) {
         respond(res, {
             page: 'detail',
+            session: req.session.username,
             data: response
         });
     });
@@ -184,10 +269,45 @@ app.get('/detail/:type/:id', function(req, res) {
 
 // Renders HTML skeleton
 function respond(res, settings, err) {
-    function getSplash() {
-        if (settings.page === 'splash') {
+    // Shows splashscreen if user is on index
+    function getSplash(page) {
+        if (page === 'splash') {
             return 'class="splash"';
         }
+    }
+
+    // Checks whether user is logged in
+     function getUserNav(activeUser) {
+        if (activeUser) {
+            return [
+                '<ul>',
+                    '<li><span>' + activeUser + '</span></li>',
+                    '<li><a href="/user/logout">Logout</a></li>',
+                '</ul>'
+            ].join('\n');
+        } else {
+            return [
+                '<ul>',
+                    '<li><a href="/user/register">Registreer</a></li>',
+                    '<li><a href="/user/login">Login</a></li>',
+                '</ul>'
+            ].join('\n');
+        }
+    }
+
+    // Swtiches navigation based on page user is currently on
+    function getPageNav(page) {
+
+        /*
+            user can't add favs if not logged in, hide if no session is available
+        */
+
+        return [
+            '<ul>',
+                '<li><a href="/results/">Resultaten</a></li>',
+                '<li><a href="/favorites/">Favorieten</a></li>',
+            '</ul>'
+        ].join('\n');
     }
 
     res.set('Content-Type', 'text/html');
@@ -206,14 +326,11 @@ function respond(res, settings, err) {
                 '<link rel="stylesheet" href="/static/style/main.css">',
                 '<script src="/static/script/main.js" defer></script>',
             '</head>',
-            '<header ' + getSplash() + '>',
+            '<header ' + getSplash(settings.page) + '>',
                 '<section class="top">',
                     '<funda-logo></funda-logo>',
                     '<nav class="user-nav">',
-                        '<ul>',
-                            '<li><a href="/user/register">Registreer</a></li>',
-                            '<li><a href="/user/login">Login</a></li>',
-                        '</ul>',
+                        getUserNav(settings.session),
                     '</nav>',
                 '</section>',
                 '<form method="GET" action="/results/?type&zo">',
@@ -258,10 +375,7 @@ function respond(res, settings, err) {
                     '</fieldset>',
                 '</form>',
                 '<nav class="page-nav">',
-                    '<ul>',
-                        '<li><a href="/results/">Resultaten</a></li>',
-                        '<li><a href="/favorites/">Favorieten</a></li>',
-                    '</ul>',
+                    getPageNav(settings.page),
                 '</nav>',
             '</header>',
             renderReqPage(settings.page, settings.data),
@@ -287,7 +401,7 @@ function renderReqPage(page, data) {
             return renderResults(data);
         break;
         case 'favorites':
-            return renderFavorites();
+            return renderFavorites(data);
         break;
         case 'detail':
             return renderDetail(data);
@@ -302,7 +416,7 @@ function renderUserPage(type) {
             return [
                 '<section>',
                     '<h2>Registreren</h2>',
-                    '<form method="post" action="/user/register">',
+                    '<form method="post" action="/user/register" class="user-form">',
                         '<fieldset>',
                             '<label>',
                                 'Gebruikersnaam',
@@ -329,7 +443,7 @@ function renderUserPage(type) {
             return [
                 '<section>',
                     '<h2>Inloggen</h2>',
-                    '<form method="post" action="/user/login">',
+                    '<form method="post" action="/user/login" class="user-form">',
                         '<fieldset>',
                             '<label>',
                                 'Gebruikersnaam',
@@ -517,22 +631,51 @@ function renderDetail(data) {
 }
 
 // Renders favourites if the user has saved any
-function renderFavorites() {
+function renderFavorites(data) {
+    if (data) {
+        console.log(data);
 
-    /*
-        Favorites from db!
-    */
+        function getFavorites() {
+            var favoritesList = [];
 
-    return [
-        '<section>',
-            '<h2></h2>',
-            '<section class="btn-block">',
-                '<button id="clearFavButton"></button>',
+            data.map(function(favorite) {
+                favoritesList.push([
+                    '<li>',
+                        '<img src="' + favorite.img + '" alt="Foto van ' + favorite.address + '">',
+                        '<a href="/favorites/add/' + favorite.id + '" class="fav-label"></a>',
+                        '<h3>',
+                            '<a data-id="' + favorite.id + '" href="/detail/' + favorite.type + '/' + favorite.id + '">' + favorite.address + '</a>',
+                        '</h3>',
+                        '<p>' + favorite.zipCity + '</p>',
+                        '<p>' + favorite.price + '</p>',
+                        '<p>' + favorite.area + '</p>',
+                        '<span>' + favorite.added + '</span>',
+                    '</li>'
+                ].join('\n'));
+            });
+
+            return favoritesList.join('\n');
+        }
+
+        return [
+            '<section>',
+                '<h2>Favorieten</h2>',
+                '<section class="btn-block">',
+                    '<button id="clearFavButton">Verwijder alles</button>',
+                '</section>',
+                '<ul id="favorites">',
+                    getFavorites(),
+                '</ul>',
             '</section>',
-            '<ul id="favorites"></ul>',
-            '<p id="noFavorites"></p>',
-        '</section>',
-    ].join('\n');
+        ].join('\n');
+    } else {
+        return [
+            '<section>',
+                '<h2>Favorieten</h2>',
+                '<p>Je hebt geen favorieten toegevoegd.</p>',
+            '</section>',
+        ].join('\n');
+    }
 }
 
 // Renders mosaic for the index page if request responded with any data
@@ -540,7 +683,7 @@ function renderMosaic(data) {
     if (data) {
         var results = JSON.parse(data.body).Objects;
 
-        var getTiles = function() {
+        function getTiles() {
             var tileList = [];
 
             results.map(function(tile) {
@@ -552,7 +695,7 @@ function renderMosaic(data) {
             });
 
             return tileList.join('\n');
-        };
+        }
 
         return [
             '<footer role="presentation" class="splash">',
