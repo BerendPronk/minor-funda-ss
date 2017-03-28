@@ -1,0 +1,33 @@
+{
+  "name": "Funda: Coding Challenge 2017 - Server Side",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Single Page App prototype for the Dutch real-estate company Funda",
+  "license": "MIT",
+  "keywords": [
+    "real-estate",
+    "real estate",
+    "server-side",
+    "single page",
+    "app"
+  ],
+  "repository": "https://github.com/BerendPronk/minor-funda-ss",
+  "author": "Berend Pronk <berendpronk1994@gmail.com>",
+  "contributors": [
+    "Berend Pronk <berendpronk1994@gmail.com>"
+  ],
+  "dependencies": {
+    "body-parser": "^1.17.1",
+    "dotenv": "^4.0.0",
+    "express": "^4.14.0",
+    "express-myconnection": "^1.0.4",
+    "express-session": "^1.15.2",
+    "mysql": "^2.13.0",
+    "path": "^0.12.7",
+    "request": "^2.81.0"
+  },
+  "scripts": {
+    "build": "browserify ./public/script/main.js -o ./public/script/bundle.js",
+    "start": "nodemon server.js"
+  }
+}
