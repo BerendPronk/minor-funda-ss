@@ -1,16 +1,3 @@
-/*
-
-    TODO:
-
-    - Filters from header
-    - Filters from favorites
-    - Fix navigation (retrieve url)
-    - Service worker
-    - Optimization via pagespeed
-
-*/
-
-
 'use strict';
 
 var path = require('path');
@@ -152,6 +139,7 @@ app
 // Route for results
 app.get('/results/*', function(req, res) {
 
+    // Filters on price from the filter option in the header
     function filterPrice(inputData) {
         var tempData = JSON.parse(inputData.body).Objects;
 
@@ -176,24 +164,137 @@ app.get('/results/*', function(req, res) {
             });
         }
 
-        console.log(tempData.length)
-
         // return inputData;
+        return JSON.stringify(tempData);
+    }
+
+    // Filters interests results based on user's favorites
+    function filterInterests(type, inputData, filters, favorites) {
+        // Initial data, parsed to put to use
+        var tempData = JSON.parse(inputData.body).Objects;
+
+        // Variables that'll store the values to filter interests on
+        var avgRooms;
+        var maxBuyPrice;
+        var maxRentPrice;
+
+        filters.roomValues.map(function(value) {
+            if (value === null || value === 'null') {
+                return false;
+            }
+
+            var sum = filters.roomValues.reduce(function(a, b) {
+                return Number(a) + Number(b);
+            });
+
+            avgRooms = Math.round(sum / filters.roomValues.length);
+        });
+
+        filters.buyPriceValues.map(function(value) {
+            if (value === null || value === 'null') {
+                return false;
+            }
+
+            var highestValue = filters.buyPriceValues.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+
+            maxBuyPrice = highestValue;
+        });
+
+        filters.rentPriceValues.map(function(value) {
+            if (value === null || value === 'null') {
+                return false;
+            }
+
+            var highestValue = filters.rentPriceValues.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+
+            maxRentPrice = highestValue;
+        });
+
+        // Retrieve average amount of rooms
+        tempData = tempData.filter(function(object) {
+            return object.AantalKamers === avgRooms;
+        });
+        // Switches filter based on searchquery type
+        if (type === 'koop') {
+            // Retrieve maximum buy price
+            tempData = tempData.filter(function(object) {
+                return object.Koopprijs <= maxBuyPrice;
+            });
+        } else {
+            // Retrieve maximum rent price
+            tempData = tempData.filter(function(object) {
+                return object.Huurprijs <= maxRentPrice;
+            });
+        }
+
+        // Removes results already existing as favorites
+        tempData = tempData.filter(function(object) {
+            for (var i = 0; i < favorites.length; i++) {
+                return object.Id !== favorites[i].favorite_ID;
+            }
+        });
+
         return JSON.stringify(tempData);
     }
 
     // Retrieves an array of the user's favorites from the database
     if (req.session.username) {
+        // Retrieves all favorites from the active user
         req.getConnection(function(err, connection) {
-            connection.query('SELECT favorite_ID FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, favorites) {
+            connection.query('SELECT * FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, favorites) {
                 // Makes a request to the funda API
                 request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/' + req.query.zo + '/&type=' + req.query.type + '&pagesize=25', function (error, response, body) {
-                    respond(res, {
-                        page: 'results',
-                        session: req.session.username,
-                        data: filterPrice(response),
-                        favorites: favorites
+
+                    // Variable that'll store an object containing filters based on user's favorites
+                    var filters;
+
+                    // Variable that'll call a function after a timeout has been reached
+                    var interests;
+
+                    // Arrays that'll contain the combined data of the user's favorites
+                    var roomValues = [];
+                    var buyPriceValues = [];
+                    var rentPriceValues = [];
+
+                    favorites.map(function(favorite) {
+                        request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + favorite.type + '/' + favorite.favorite_ID + '/', function (error, response, body) {
+                            var data = JSON.parse(body);
+
+                            roomValues.push(data.AantalKamers);
+                            buyPriceValues.push(data.Prijs.Koopprijs);
+                            rentPriceValues.push(data.Prijs.Huurprijs);
+                        });
                     });
+
+                    // Glorious timeout ladder: Step 1 - Initializing filters
+                    setTimeout(function() {
+                        filters = {
+                            roomValues: roomValues,
+                            buyPriceValues: buyPriceValues,
+                            rentPriceValues: rentPriceValues
+                        }
+                    }, 250);
+
+                    // Glorious timeout ladder: Step 2 - Applying filters
+                    setTimeout(function() {
+                        // Retrieves possible interesting results from results
+                        interests = filterInterests(req.query.type, response, filters, favorites);
+                    }, 375);
+
+                    // Glorious timeout ladder: Step 3 - Execution
+                    setTimeout(function() {
+                        respond(res, {
+                            page: 'results',
+                            session: req.session.username,
+                            data: filterPrice(response),
+                            interests: interests,
+                            favorites: favorites
+                        });
+                    }, 500);
                 });
             });
         });
@@ -217,6 +318,7 @@ app
         */
         if (req.session.username) {
             req.getConnection(function(err, connection) {
+                // Retrieves favorites from active user
                 connection.query('SELECT * FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, results) {
 
                     // Array that'll contain data from each favorite
@@ -284,7 +386,6 @@ app
         // Checks if user is logged in
         if (req.session.username) {
             req.getConnection(function(err, connection) {
-
                 // Connects to database to check if item is already in favorites
                 connection.query('SELECT * FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, results) {
                     if (results.length === 0) {
@@ -324,8 +425,8 @@ app
 app.get('/detail/:type/:id', function(req, res) {
     if (req.session.username) {
         req.getConnection(function(err, connection) {
+            // Select favorite ID's in order to compare with the result the user requested the details for, to eventually display a colored in heart if the result already exists in user's favorites
             connection.query('SELECT favorite_ID FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, favorites) {
-
                 // Makes a request to the funda API
                 request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + req.params.type + '/' + req.params.id + '/', function (error, response, body) {
                     respond(res, {
@@ -421,9 +522,6 @@ function respond(res, settings, err) {
                     '<fieldset>',
                         '<label for="search">Zoek woningen</label>',
                         '<input id="search" name="zo" type="text" placeholder="Plaats, buurt, adres, et cetera">',
-                        '<ul id="suggestions">',
-                            // Might since javascript request with visible API-key is needed
-                        '</ul>',
                     '</fieldset>',
                     '<!-- section, because flexbox doesn\'t work on fieldsets -->',
                     '<section id="filter">',
@@ -460,11 +558,8 @@ function respond(res, settings, err) {
                         '<button id="submit">Verzenden</button>',
                     '</fieldset>',
                 '</form>',
-                '<nav class="page-nav">',
-                    getPageNav(settings.page),
-                '</nav>',
             '</header>',
-            renderReqPage(settings.page, settings.data, settings.favorites),
+            renderReqPage(settings.page, settings.data, settings.favorites, settings.interests),
         '</body>',
         '</html>',
         ''
@@ -472,7 +567,7 @@ function respond(res, settings, err) {
 };
 
 // Renders page underneath header based on input
-function renderReqPage(page, data, favorites) {
+function renderReqPage(page, data, favorites, interests) {
     switch (page) {
         case 'splash':
             return renderMosaic(data);
@@ -484,7 +579,7 @@ function renderReqPage(page, data, favorites) {
             return renderUserPage('login');
         break;
         case 'results':
-            return renderResults(data, favorites);
+            return renderResults(data, favorites, interests);
         break;
         case 'favorites':
             return renderFavorites(data);
@@ -552,7 +647,7 @@ function renderUserPage(type) {
 }
 
 // Renders result-page if there are any results from the request
-function renderResults(data, favorites) {
+function renderResults(data, favorites, interests) {
     if (data) {
         var results = JSON.parse(data);
 
@@ -631,10 +726,12 @@ function renderResults(data, favorites) {
 
         // Returns entire result page with results
         return [
-            '<section>',
+            '<section id="results">',
+                '<section class="btn-block">',
+                    '<a href="/favorites">Favorieten</a>',
+                '</section>',
                 '<h2>Resultaten</h2>',
-                '<p id="resultAmount">RESTYLEN + CORRECT DATA</p>',
-                renderInterests(),
+                renderInterests(interests),
                 '<ul id="results" class="result-list">',
                     getList(),
                 '</ul>',
@@ -643,7 +740,10 @@ function renderResults(data, favorites) {
     } else {
         // Returns entire result page without any results
         return [
-            '<section>',
+            '<section id="results">',
+                '<section class="btn-block">',
+                    '<a href="/favorites">Favorieten</a>',
+                '</section>',
                 '<h2>Resultaten</h2>',
                 '<p>',
                     'Er zijn geen resultaten gevonden.',
@@ -654,12 +754,68 @@ function renderResults(data, favorites) {
 }
 
 // Renders interests based on user's favorites from database
-function renderInterests() {
-    return [
-        '<ul id="interests" class="result-list">',
-            // interests
-        '</ul>',
-    ].join('\n');
+function renderInterests(data) {
+    if (data) {
+        var results = JSON.parse(data);
+
+        function getInterests() {
+            var interestsList = [];
+
+            results.map(function(interest) {
+                // Gets buy / rental price
+                function getPrice() {
+                    if (interest.Prijs.Koopprijs && !interest.Prijs.Huurprijs) {
+                        return '<strong>€ ' + numberWithPeriods(interest.Prijs.Koopprijs) + ' <abbr title="Kosten Koper">k.k.</abbr></strong>';
+                    } else {
+                        return '<strong>€ ' + numberWithPeriods(interest.Prijs.Huurprijs) + ' <abbr title="Per maand">/mnd</abbr></strong>';
+                    }
+                }
+
+                // Checks if property-area should be included
+                function getArea() {
+                    if (interest.Perceeloppervlakte) {
+                        return interest.Woonoppervlakte + 'm² / ' + interest.Perceeloppervlakte + 'm² • ' + interest.AantalKamers + ' kamers';
+                    } else {
+                        return interest.Woonoppervlakte + 'm² • ' + interest.AantalKamers + ' kamers';
+                    }
+                }
+
+                // Checks if the house is for sale or for rent
+                function getType() {
+                    if (interest.Koopprijs && !interest.Huurprijs) {
+                        return 'koop';
+                    } else {
+                        return 'huur';
+                    }
+                }
+
+                // Pushes DOM-structure to interestsList
+                interestsList.push([
+                    '<li>',
+                        '<img src="' + interest.FotoLarge + '" alt="Foto van ' + interest.Adres + '">',
+                        '<a href="/favorites/add/' + getType() + '/' + interest.Id + '" class="fav-label"></a>',
+                        '<h3>',
+                            '<a data-id="' + interest.Id + '" href="/detail/' + getType() + '/' + interest.Id + '">' + interest.Adres + '</a>',
+                        '</h3>',
+                        '<p>' + interest.Postcode + ', ' + interest.Woonplaats + '</p>',
+                        '<p>' + getPrice() + '</p>',
+                        '<p>' + getArea() + '</p>',
+                        '<span>' + interest.AangebodenSindsTekst + '</span>',
+                    '</li>'
+                ].join('\n'));
+            });
+
+            return interestsList.join('\n');
+        }
+
+        return [
+            '<ul id="interests" class="result-list">',
+                getInterests(),
+            '</ul>',
+        ].join('\n');
+    } else {
+        return '';
+    }
 }
 
 
@@ -702,23 +858,6 @@ function renderDetail(data, favorites) {
             }
         };
 
-        // Renders breadcrumbs as navigation
-        function getBreadcrumbs() {
-            return [
-                '<li>',
-                    '<a href="javascript:history.back()">',
-                        'Resultaten',
-                    '</a>',
-                '</li>',
-                '<li>',
-                    detail.address,
-                '</li>'
-            ].join('\n');;
-        }
-
-
-        console.log(favorites);
-
         // Checks whether an item already exists in favorites of user and sets correct reference
         function checkFavorites() {
             if (favorites) {
@@ -742,9 +881,9 @@ function renderDetail(data, favorites) {
 
         return [
             '<section id="detail">',
-                '<ul id="breadcrumbs">',
-                    getBreadcrumbs(),
-                '</ul>',
+                '<section class="btn-block">',
+                    '<a href="javascript:history.back()" class="go-back">Terug</a>',
+                '</section>',
                 '<h2>' + detail.address + '</h2>',
                 '<h3>' + detail.zipCity + '</h3>',
                 '<section class="img-block">',
@@ -796,10 +935,11 @@ function renderFavorites(data) {
 
         return [
             '<section>',
-                '<h2>Favorieten</h2>',
                 '<section class="btn-block">',
-                    '<a href="/favorites/remove/all">Verwijder alles</a>',
+                    '<a href="javascript:history.back()" class="go-back">Terug</a>',
+                    '<a href="/favorites/remove/all" class="delete-all">Verwijder alles</a>',
                 '</section>',
+                '<h2>Favorieten</h2>',
                 '<ul id="favorites" class="result-list">',
                     getFavorites(),
                 '</ul>',
