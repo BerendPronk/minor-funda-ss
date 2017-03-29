@@ -1,7 +1,4 @@
 @charset "UTF-8";
-	fieldset, ul {
-	padding: 0;
-}
 
 * {
 	box-sizing: border-box;
@@ -19,6 +16,10 @@ body {
 	font-size: 1em;
 	color: #333;
 	background-color: #f8b000;
+}
+
+ul {
+	padding: 0;
 }
 
 p {
@@ -42,6 +43,7 @@ button:focus, button:hover, input[type=submit]:focus, input[type=submit]:hover {
 
 fieldset {
 	margin: 0;
+	padding: 0;
 	border: none;
 }
 input, label {
@@ -266,58 +268,6 @@ header form #filter input[type=radio], header form #filter input[type=checkbox] 
 }
 header form #filter input[type=radio]:checked+label, header form #filter input[type=checkbox]:checked+label {
 	background-color: #11acee;
-}
-header form #suggestions {
-	position: absolute;
-	top: calc(5.2rem + 1px);
-	z-index: 2;
-	width: 80%;
-	margin: 0;
-	overflow: hidden;
-	border-radius: 0 0 .25rem .25rem;
-	box-shadow: 0 0 0 1px #70cdf5;
-}
-header form #suggestions > li {
-	display: block;
-	width: 100%;
-	padding: 1em;
-	cursor: pointer;
-	background-color: #fff;
-	border-bottom: 1px solid #e6e6e6;
-}
-header form #suggestions > li:active, header form #suggestions > li:hover {
-	background-color: #f2f2f2;
-}
-header form #suggestions > li:last-of-type {
-	border-bottom: none;
-}
-header form #suggestions > li ul {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	width: 100%}
-header form #suggestions > li ul li {
-	display: block;
-	width: 80%;
-	font-weight: 700;
-}
-header form #suggestions > li ul li:last-of-type {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	width: 20%;
-	font-size: .8em;
-	font-weight: 400;
-	color: #999;
-}
-header form #suggestions > li ul li:last-of-type img {
-	margin-left: .5em;
-}
-header form #suggestions > li ul li span {
-	display: block;
-	margin-top: .25em;
-	font-size: .8em;
-	font-weight: 400;
 }
 
 header .page-nav {
@@ -628,31 +578,8 @@ body > section h2 {
 	box-shadow: 0 .1rem .1rem rgba(0, 0, 0, .25);
 }
 
-#feedback, footer.splash {
-	display: block;
-}
 #feedback {
-	position: absolute;
-	right: 1rem;
-	top: 0;
-	padding: 1em .75em .75em;
-	font-weight: 700;
-	color: #fff;
-	border-radius: 0 0 .25rem .25rem;
-	background-color: #333;
-	opacity: 0;
-	transform: translateY(-100%);
-	transition: .2s ease;
-}
-#feedback.active {
-	opacity: 1;
-	transform: translateY(0);
-}
-#feedback.positive {
-	background-color: #a9c42a;
-}
-#feedback.negative {
-	background-color: #f83400;
+
 }
 
 footer {
