@@ -1,3 +1,16 @@
+/*
+
+    TODO:
+
+    - Filters from header
+    - Filters from favorites
+    - Fix navigation (retrieve url)
+    - Service worker
+    - Optimization via pagespeed
+
+*/
+
+
 'use strict';
 
 var path = require('path');
@@ -138,6 +151,37 @@ app
 
 // Route for results
 app.get('/results/*', function(req, res) {
+
+    function filterPrice(inputData) {
+        var tempData = JSON.parse(inputData.body).Objects;
+
+        // Applies filter if minimum price exists in GET request
+        if (req.query.priceMin) {
+            tempData = tempData.filter(function(object) {
+                if (object.Koopprijs && !object.Huurprijs) {
+                    return object.Koopprijs > req.query.priceMin;
+                } else {
+                    return object.Huurprijs > req.query.priceMin;
+                }
+            });
+        }
+        // Applies filter if maximum price exists in GET request
+        if (req.query.priceMax) {
+            tempData = tempData.filter(function(object) {
+                if (object.Koopprijs && !object.Huurprijs) {
+                    return object.Koopprijs < req.query.priceMax;
+                } else {
+                    return object.Huurprijs < req.query.priceMax;
+                }
+            });
+        }
+
+        console.log(tempData.length)
+
+        // return inputData;
+        return JSON.stringify(tempData);
+    }
+
     // Retrieves an array of the user's favorites from the database
     if (req.session.username) {
         req.getConnection(function(err, connection) {
@@ -147,7 +191,7 @@ app.get('/results/*', function(req, res) {
                     respond(res, {
                         page: 'results',
                         session: req.session.username,
-                        data: response,
+                        data: filterPrice(response),
                         favorites: favorites
                     });
                 });
@@ -159,7 +203,7 @@ app.get('/results/*', function(req, res) {
             respond(res, {
                 page: 'results',
                 session: req.session.username,
-                data: response
+                data: filterPrice(response)
             });
         });
     }
@@ -373,7 +417,7 @@ function respond(res, settings, err) {
                         getUserNav(settings.session),
                     '</nav>',
                 '</section>',
-                '<form method="GET" action="/results/?type&zo">',
+                '<form method="GET" action="/results/?type&zo&priceMin&priceMax">',
                     '<fieldset>',
                         '<label for="search">Zoek woningen</label>',
                         '<input id="search" name="zo" type="text" placeholder="Plaats, buurt, adres, et cetera">',
@@ -399,15 +443,15 @@ function respond(res, settings, err) {
                         '</label>',
                         '<section class="filter-price">',
                             '<section class="filter-text">',
-                                '<label for="filterPriceFrom">Prijs van</label>',
+                                '<label for="priceMin">Prijs van</label>',
                                 '<section class="filter-text-input">',
-                                    '<input id="filterPriceFrom" type="number" step="1000">',
+                                    '<input id="priceMin" name="priceMin" type="number" step="1000">',
                                 '</section>',
                             '</section>',
                             '<section class="filter-text">',
-                                '<label for="filterPriceTo">Prijs tot</label>',
+                                '<label for="priceMax">Prijs tot</label>',
                                 '<section class="filter-text-input">',
-                                    '<input id="filterPriceTo" type="number" step="1000">',
+                                    '<input id="priceMax" name="priceMax" type="number" step="1000">',
                                 '</section>',
                             '</section>',
                         '</section>',
@@ -510,7 +554,7 @@ function renderUserPage(type) {
 // Renders result-page if there are any results from the request
 function renderResults(data, favorites) {
     if (data) {
-        var results = JSON.parse(data.body).Objects;
+        var results = JSON.parse(data);
 
         // Will contain the DOM-structure of every result
         var resultList = [];
