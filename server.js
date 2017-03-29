@@ -1,15 +1,3 @@
-/*
-
-    TODO:
-
-    - Fix feedback to user
-    - Service worker
-    - Refactor code
-    - Optimization via pagespeed
-
-*/
-
-
 'use strict';
 
 var path = require('path');
