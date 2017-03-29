@@ -68,12 +68,6 @@ app
     })
     .post('/user/register', function(req, res) {
         req.getConnection(function(err, connection) {
-
-
-            connection.query('SELECT * FROM users', function(err, results) {
-                console.log(results);
-            })
-
             var data = {
                 username: req.body.username,
                 password: req.body.password
@@ -144,17 +138,34 @@ app
 
 // Route for results
 app.get('/results/*', function(req, res) {
-    // Makes a request to the funda API
-    request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/' + req.query.zo + '/&type=' + req.query.type + '&pagesize=25', function (error, response, body) {
-        respond(res, {
-            page: 'results',
-            session: req.session.username,
-            data: response
+    // Retrieves an array of the user's favorites from the database
+    if (req.session.username) {
+        req.getConnection(function(err, connection) {
+            connection.query('SELECT favorite_ID FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, favorites) {
+                // Makes a request to the funda API
+                request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/' + req.query.zo + '/&type=' + req.query.type + '&pagesize=25', function (error, response, body) {
+                    respond(res, {
+                        page: 'results',
+                        session: req.session.username,
+                        data: response,
+                        favorites: favorites
+                    });
+                });
+            });
         });
-    });
-})
+    } else {
+        // Makes a request to the funda API
+        request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/' + req.query.zo + '/&type=' + req.query.type + '&pagesize=25', function (error, response, body) {
+            respond(res, {
+                page: 'results',
+                session: req.session.username,
+                data: response
+            });
+        });
+    }
+});
 
-// Routes for favourites
+// Routes for favorites
 app
     .get('/favorites', function(req, res) {
         /*
@@ -164,20 +175,12 @@ app
             req.getConnection(function(err, connection) {
                 connection.query('SELECT * FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, results) {
 
-                    // Array that'll contain ...
+                    // Array that'll contain data from each favorite
                     var favoritesData = [];
-
-                    /*
-
-                        INSERT BUY / RENT IN DATABASE AS WELL
-
-                    */
 
                     // Retrieves ID of every saved favorite from database
                     results.map(function(result) {
-                        // console.log(result.favorite_ID);
-
-                        request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + 'koop' + '/' + result.favorite_ID + '/', function (error, response, body) {
+                        request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + result.type + '/' + result.favorite_ID + '/', function (error, response, body) {
                             var data = JSON.parse(body);
 
                             function dataType() {
@@ -217,14 +220,15 @@ app
                         });
                     })
 
-                    // Create a proper fallback
+                    // Uses timeout in order to retrieve data from database
+                    // Create a proper fallback*
                     setTimeout(function() {
                         respond(res, {
                             page: 'favorites',
                             session: req.session.username,
                             data: favoritesData
                         });
-                    }, 500)
+                    }, 1500)
                 });
             });
         } else {
@@ -232,7 +236,7 @@ app
             res.redirect('/user/login');
         }
     })
-    .get('/favorites/add/:id', function(req, res) {
+    .get('/favorites/add/:type/:id/', function(req, res) {
         // Checks if user is logged in
         if (req.session.username) {
             req.getConnection(function(err, connection) {
@@ -240,9 +244,9 @@ app
                 // Connects to database to check if item is already in favorites
                 connection.query('SELECT * FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, results) {
                     if (results.length === 0) {
-                        connection.query('INSERT INTO favorites (user_ID, favorite_ID) VALUES ((SELECT ID FROM users WHERE username = ?), ?)', [req.session.username, req.params.id], function(err, results) {
+                        connection.query('INSERT INTO favorites (user_ID, favorite_ID, type) VALUES ((SELECT ID FROM users WHERE username = ?), ?, ?)', [req.session.username, req.params.id, req.params.type], function(err, results) {
                             console.log('Successfully added favorite!');
-                            res.redirect('/');
+                            res.redirect('/favorites');
                         });
                     } else {
                         console.log('Already in favorites');
@@ -253,18 +257,52 @@ app
             console.log('You need to be logged in first');
             res.redirect('/user/login');
         }
+    })
+    .get('/favorites/remove/all', function(req, res) {
+        req.getConnection(function(err, connection) {
+            // Removes all of user's favorites from database
+            connection.query('DELETE FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, results) {
+                res.redirect('/favorites');
+            });
+        });
+    })
+    .get('/favorites/remove/:id', function(req, res) {
+        req.getConnection(function(err, connection) {
+            // Removes favorite from database
+            connection.query('DELETE FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, results) {
+                console.log('Succesfully removed "' + req.params.id + '" from database');
+                res.redirect('/favorites');
+            });
+        });
     });
 
 // Route for detail page
 app.get('/detail/:type/:id', function(req, res) {
-    // Makes a request to the funda API
-    request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + req.params.type + '/' + req.params.id + '/', function (error, response, body) {
-        respond(res, {
-            page: 'detail',
-            session: req.session.username,
-            data: response
+    if (req.session.username) {
+        req.getConnection(function(err, connection) {
+            connection.query('SELECT favorite_ID FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, favorites) {
+
+                // Makes a request to the funda API
+                request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + req.params.type + '/' + req.params.id + '/', function (error, response, body) {
+                    respond(res, {
+                        page: 'detail',
+                        session: req.session.username,
+                        data: response,
+                        favorites: favorites
+                    });
+                });
+            });
         });
-    });
+    } else {
+         // Makes a request to the funda API
+        request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/detail/' + apiKey + '/' + req.params.type + '/' + req.params.id + '/', function (error, response, body) {
+            respond(res, {
+                page: 'detail',
+                session: req.session.username,
+                data: response
+            });
+        });
+    }
 });
 
 // Renders HTML skeleton
@@ -273,6 +311,8 @@ function respond(res, settings, err) {
     function getSplash(page) {
         if (page === 'splash') {
             return 'class="splash"';
+        } else {
+            return '';
         }
     }
 
@@ -337,7 +377,9 @@ function respond(res, settings, err) {
                     '<fieldset>',
                         '<label for="search">Zoek woningen</label>',
                         '<input id="search" name="zo" type="text" placeholder="Plaats, buurt, adres, et cetera">',
-                        '<ul id="suggestions"></ul>',
+                        '<ul id="suggestions">',
+                            // Might since javascript request with visible API-key is needed
+                        '</ul>',
                     '</fieldset>',
                     '<!-- section, because flexbox doesn\'t work on fieldsets -->',
                     '<section id="filter">',
@@ -378,7 +420,7 @@ function respond(res, settings, err) {
                     getPageNav(settings.page),
                 '</nav>',
             '</header>',
-            renderReqPage(settings.page, settings.data),
+            renderReqPage(settings.page, settings.data, settings.favorites),
         '</body>',
         '</html>',
         ''
@@ -386,7 +428,7 @@ function respond(res, settings, err) {
 };
 
 // Renders page underneath header based on input
-function renderReqPage(page, data) {
+function renderReqPage(page, data, favorites) {
     switch (page) {
         case 'splash':
             return renderMosaic(data);
@@ -398,13 +440,13 @@ function renderReqPage(page, data) {
             return renderUserPage('login');
         break;
         case 'results':
-            return renderResults(data);
+            return renderResults(data, favorites);
         break;
         case 'favorites':
             return renderFavorites(data);
         break;
         case 'detail':
-            return renderDetail(data);
+            return renderDetail(data, favorites);
         break;
     }
 }
@@ -466,7 +508,7 @@ function renderUserPage(type) {
 }
 
 // Renders result-page if there are any results from the request
-function renderResults(data) {
+function renderResults(data, favorites) {
     if (data) {
         var results = JSON.parse(data.body).Objects;
 
@@ -501,11 +543,32 @@ function renderResults(data) {
                 }
             }
 
+            // Checks whether an item already exists in favorites of user and sets correct reference
+            function checkFavorites() {
+                if (favorites) {
+                    // Checks if user has any favorites added, returns 'add' link for each result otherwise
+                    if (favorites.length) {
+                        for (var i = 0; i < favorites.length; i++) {
+                            if (favorites[i].favorite_ID === result.Id) {
+                                return '<a href="/favorites/remove/' + result.Id + '" class="fav-label checked"></a>';
+                            }
+                            if (i === favorites.length - 1) {
+                                return '<a href="/favorites/add/' + getType() + '/' + result.Id + '" class="fav-label"></a>';
+                            }
+                        }
+                    } else {
+                        return '<a href="/favorites/add/' + getType() + '/' + result.Id + '" class="fav-label"></a>';
+                    }
+                } else {
+                    return '<a href="/favorites/add/' + getType() + '/' + result.Id + '" class="fav-label"></a>';
+                }
+            }
+
             // Pushes DOM-structure to resultList
             resultList.push([
                 '<li>',
                     '<img src="' + result.FotoLarge + '" alt="Foto van ' + result.Adres + '">',
-                    '<a href="/favorites/add/' + result.Id + '" class="fav-label"></a>',
+                    checkFavorites(),
                     '<h3>',
                         '<a data-id="' + result.Id + '" href="/detail/' + getType() + '/' + result.Id + '">' + result.Adres + '</a>',
                     '</h3>',
@@ -527,13 +590,12 @@ function renderResults(data) {
             '<section>',
                 '<h2>Resultaten</h2>',
                 '<p id="resultAmount">RESTYLEN + CORRECT DATA</p>',
-                '<ul id="interests" class="hidden"></ul>',
-                '<ul id="results">',
+                renderInterests(),
+                '<ul id="results" class="result-list">',
                     getList(),
                 '</ul>',
-                '<p id="noResults"></p>',
             '</section>'
-            ].join('\n');
+        ].join('\n');
     } else {
         // Returns entire result page without any results
         return [
@@ -547,8 +609,18 @@ function renderResults(data) {
     }
 }
 
+// Renders interests based on user's favorites from database
+function renderInterests() {
+    return [
+        '<ul id="interests" class="result-list">',
+            // interests
+        '</ul>',
+    ].join('\n');
+}
+
+
 // Renders detail page if there is any data to render one
-function renderDetail(data) {
+function renderDetail(data, favorites) {
     if (data) {
         var result = JSON.parse(data.body);
 
@@ -600,8 +672,32 @@ function renderDetail(data) {
             ].join('\n');;
         }
 
+
+        console.log(favorites);
+
+        // Checks whether an item already exists in favorites of user and sets correct reference
+        function checkFavorites() {
+            if (favorites) {
+                // Checks if user has any favorites added, returns 'add' link for each result otherwise
+                if (favorites.length) {
+                    for (var i = 0; i < favorites.length; i++) {
+                        if (favorites[i].favorite_ID === detail.id) {
+                            return '<a href="/favorites/remove/' + detail.id + '" class="fav-label checked"></a>';
+                        }
+                        if (i === favorites.length - 1) {
+                            return '<a href="/favorites/add/' + detail.type() + '/' + detail.id + '" class="fav-label"></a>';
+                        }
+                    }
+                } else {
+                    return '<a href="/favorites/add/' + detail.type() + '/' + detail.id + '" class="fav-label"></a>';
+                }
+            } else {
+                return '<a href="/favorites/add/' + detail.type() + '/' + detail.id + '" class="fav-label"></a>';
+            }
+        }
+
         return [
-            '<section>',
+            '<section id="detail">',
                 '<ul id="breadcrumbs">',
                     getBreadcrumbs(),
                 '</ul>',
@@ -609,8 +705,7 @@ function renderDetail(data) {
                 '<h3>' + detail.zipCity + '</h3>',
                 '<section class="img-block">',
                     '<img src="' + detail.img + '" alt="Foto van ' + detail.address + '">',
-                    '<input id="' + detail.id + '" type="checkbox" class="fav">',
-                    '<label for="' + detail.id + '" class="fav-label"></label>',
+                    checkFavorites(),
                     '<p id="detailPrice">' + detail.price() + '</p>',
                 '</section>',
                 '<article>',
@@ -620,7 +715,7 @@ function renderDetail(data) {
         ].join('\n');
     } else {
         return [
-            '<section>',
+            '<section id="detail">',
                 '<h2>Details</h2>',
                 '<p>',
                     'Voor dit resultaat zijn geen gegevens bekend.',
@@ -630,11 +725,9 @@ function renderDetail(data) {
     }
 }
 
-// Renders favourites if the user has saved any
+// Renders favorites if the user has saved any
 function renderFavorites(data) {
-    if (data) {
-        console.log(data);
-
+    if (data.length) {
         function getFavorites() {
             var favoritesList = [];
 
@@ -642,7 +735,7 @@ function renderFavorites(data) {
                 favoritesList.push([
                     '<li>',
                         '<img src="' + favorite.img + '" alt="Foto van ' + favorite.address + '">',
-                        '<a href="/favorites/add/' + favorite.id + '" class="fav-label"></a>',
+                        '<a href="/favorites/remove/' + favorite.id + '" class="fav-label checked"></a>',
                         '<h3>',
                             '<a data-id="' + favorite.id + '" href="/detail/' + favorite.type + '/' + favorite.id + '">' + favorite.address + '</a>',
                         '</h3>',
@@ -661,9 +754,9 @@ function renderFavorites(data) {
             '<section>',
                 '<h2>Favorieten</h2>',
                 '<section class="btn-block">',
-                    '<button id="clearFavButton">Verwijder alles</button>',
+                    '<a href="/favorites/remove/all">Verwijder alles</a>',
                 '</section>',
-                '<ul id="favorites">',
+                '<ul id="favorites" class="result-list">',
                     getFavorites(),
                 '</ul>',
             '</section>',
