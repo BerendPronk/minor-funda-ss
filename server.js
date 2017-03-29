@@ -1,3 +1,15 @@
+/*
+
+    TODO:
+
+    - Fix feedback to user
+    - Service worker
+    - Refactor code
+    - Optimization via pagespeed
+
+*/
+
+
 'use strict';
 
 var path = require('path');
@@ -14,14 +26,14 @@ require('dotenv').config();
 var apiKey = process.env.FUNDA_API_KEY;
 
 if (!apiKey) {
-    throw new Error('No `FUNDA_API_KEY` found in .env');
+    throw new Error('No `FUNDA_API_KEY` found in .env, please contact me via berendpronk199@gmail.com');
 }
 
 // Makes it possible to server static files assets
-app.use('/static', express.static(path.join(__dirname, 'public')))
+app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // Body parsing middleware
-app.use(bodyParser.urlencoded({extended: true}))
+app.use(bodyParser.urlencoded({extended: true}));
 
 // Creates a connection to MySQL database
 app.use(myConnection(mysql, {
@@ -41,19 +53,16 @@ app.use(session({
 
 // Route for index.html
 app.get('/', function(req, res) {
-
-    if (req.session.username) {
-        console.log('logged in as: ' + req.session.username)
-    } else {
-        console.log('not logged in')
-    }
-
     // Makes a request to the funda API
     request('http://funda.kyrandia.nl/feeds/Aanbod.svc/json/' + apiKey + '/?zo=/limmen/&type=koop&pagesize=24', function (error, response, body) {
         respond(res, {
             page: 'splash',
             session: req.session.username,
-            data: response
+            data: response,
+            feedback: {
+                message: req.query.feedback,
+                state: req.query.state
+            }
         });
     });
 })
@@ -63,7 +72,11 @@ app
     .get('/user/register', function(req, res) {
         respond(res, {
             page: 'user/register',
-            session: req.session.username
+            session: req.session.username,
+            feedback: {
+                message: req.query.feedback,
+                state: req.query.state
+            }
         });
     })
     .post('/user/register', function(req, res) {
@@ -76,22 +89,34 @@ app
 
             connection.query('SELECT * FROM users WHERE username = ?', [data.username], function(err, results) {
                 if (results.length > 0) {
-                    console.log('username already exists')
-                    res.redirect('/user/register');
+                    var feedback = {
+                        message: encodeURIComponent('Deze gebruikersnaam bestaat al'),
+                        state: encodeURIComponent('negative')
+                    };
+                    res.redirect('/user/register/?feedback=' + feedback.message + '&state=' + feedback.state);
                 } else {
                     if (data.password === passwordCopy) {
                         if (data.username !== '' && data.password !== '') {
                             connection.query('INSERT INTO users SET ?', [data], function(err, results) {
-                                console.log('Register successful!');
-                                res.redirect('/');
+                                var feedback = {
+                                    message: encodeURIComponent('Geweldig! Je kunt nu inloggen'),
+                                    state: encodeURIComponent('positive')
+                                };
+                                res.redirect('/user/login?feedback=' + feedback.message + '&state=' + feedback.state);
                             });
                         } else {
-                            console.log('Please fill in every input')
-                            res.redirect('/user/register');
+                            var feedback = {
+                                message: encodeURIComponent('Vul alle velden in, alsjeblieft'),
+                                state: encodeURIComponent('negative')
+                            };
+                            res.redirect('/user/register/?feedback=' + feedback.message + '&state=' + feedback.state);
                         }
                     } else {
-                        console.log('Passwords do not match!');
-                        res.redirect('/user/register');
+                        var feedback = {
+                            message: encodeURIComponent('Wachtwoorden komen niet overeen'),
+                            state: encodeURIComponent('negative')
+                        };
+                        res.redirect('/user/register/?feedback=' + feedback.message + '&state=' + feedback.state);
                     }
                 }
             });
@@ -103,27 +128,38 @@ app
     .get('/user/login', function(req, res) {
             respond(res, {
                 page: 'user/login',
-                session: req.session.username
+                session: req.session.username,
+                feedback: {
+                    message: req.query.feedback,
+                    state: req.query.state
+                }
             });
         })
-    app.post('/user/login', function(req, res) {
+    .post('/user/login', function(req, res) {
         req.getConnection(function(err, connection) {
             var data = {
                 username: req.body.username,
                 password: req.body.password
             }
 
+            // Checks if user exists
             connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [data.username, data.password], function(err, results) {
                 if (results.length > 0) {
                     // Set username as a session
                     req.session.username = results[0].username;
                     req.session.save();
 
-                    console.log('Login successful');
-                    res.redirect('/');
+                    var feedback = {
+                        message: encodeURIComponent('Welkom, ' + results[0].username + '!'),
+                        state: encodeURIComponent('positive')
+                    };
+                    res.redirect('/?feedback=' + feedback.message + '&state=' + feedback.state);
                 } else {
-                    console.log('Wrong username or password given');
-                    res.redirect('/user/login');
+                    var feedback = {
+                        message: encodeURIComponent('Je gebruikersnaam / wachtwoord was incorrect'),
+                        state: encodeURIComponent('negative')
+                    };
+                    res.redirect('/user/login/?feedback=' + feedback.message + '&state=' + feedback.state);
                 }
             });
         });
@@ -132,8 +168,14 @@ app
 // Route for logout
 app
     .get('/user/logout', function(req, res) {
+        // Destroys session
         req.session.destroy();
-        res.redirect('/');
+
+        var feedback = {
+            message: encodeURIComponent('Tot ziens!'),
+            state: encodeURIComponent('positive')
+        };
+        res.redirect('/?feedback=' + feedback.message + '&state=' + feedback.state);
     });
 
 // Route for results
@@ -313,9 +355,6 @@ app.get('/results/*', function(req, res) {
 // Routes for favorites
 app
     .get('/favorites', function(req, res) {
-        /*
-            MySQL Connection to favorites table
-        */
         if (req.session.username) {
             req.getConnection(function(err, connection) {
                 // Retrieves favorites from active user
@@ -372,14 +411,21 @@ app
                         respond(res, {
                             page: 'favorites',
                             session: req.session.username,
-                            data: favoritesData
+                            data: favoritesData,
+                            feedback: {
+                                message: req.query.feedback,
+                                state: req.query.state
+                            }
                         });
                     }, 1500)
                 });
             });
         } else {
-            console.log('You need to be logged in first');
-            res.redirect('/user/login');
+            var feedback = {
+                message: encodeURIComponent('Je dient ingelogd te zijn om een favoriet aan te maken'),
+                state: encodeURIComponent('negative')
+            };
+            res.redirect('/user/login/?feedback=' + feedback.message + '&state=' + feedback.state);
         }
     })
     .get('/favorites/add/:type/:id/', function(req, res) {
@@ -390,24 +436,38 @@ app
                 connection.query('SELECT * FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, results) {
                     if (results.length === 0) {
                         connection.query('INSERT INTO favorites (user_ID, favorite_ID, type) VALUES ((SELECT ID FROM users WHERE username = ?), ?, ?)', [req.session.username, req.params.id, req.params.type], function(err, results) {
-                            console.log('Successfully added favorite!');
-                            res.redirect('/favorites');
+                            var feedback = {
+                                message: encodeURIComponent('Favoriet toegevoegd!'),
+                                state: encodeURIComponent('positive')
+                            };
+                            res.redirect('/favorites/?feedback=' + feedback.message + '&state=' + feedback.state);
                         });
                     } else {
-                        console.log('Already in favorites');
+                        var feedback = {
+                            message: encodeURIComponent('Dit huis bestond al in je favorieten!'),
+                            state: encodeURIComponent('negative')
+                        };
+                        res.redirect('/favorites/?feedback=' + feedback.message + '&state=' + feedback.state);
                     }
                 });
             });
         } else {
-            console.log('You need to be logged in first');
-            res.redirect('/user/login');
+            var feedback = {
+                message: encodeURIComponent('Je dient ingelogd te zijn om een favoriet toe te kunnen voegen'),
+                state: encodeURIComponent('negative')
+            };
+            res.redirect('/user/login/?feedback=' + feedback.message + '&state=' + feedback.state);
         }
     })
     .get('/favorites/remove/all', function(req, res) {
         req.getConnection(function(err, connection) {
             // Removes all of user's favorites from database
             connection.query('DELETE FROM favorites WHERE user_ID = (SELECT ID FROM users WHERE username = ?)', [req.session.username], function(err, results) {
-                res.redirect('/favorites');
+                var feedback = {
+                    message: encodeURIComponent('Al jouw favorieten zijn verwijderd!'),
+                    state: encodeURIComponent('positive')
+                };
+                res.redirect('/favorites/?feedback=' + feedback.message + '&state=' + feedback.state);
             });
         });
     })
@@ -415,8 +475,11 @@ app
         req.getConnection(function(err, connection) {
             // Removes favorite from database
             connection.query('DELETE FROM favorites WHERE favorite_ID = ?', [req.params.id], function(err, results) {
-                console.log('Succesfully removed "' + req.params.id + '" from database');
-                res.redirect('/favorites');
+                var feedback = {
+                    message: encodeURIComponent('Favoriet verwijderd!'),
+                    state: encodeURIComponent('positive')
+                };
+                res.redirect('/favorites/?feedback=' + feedback.message + '&state=' + feedback.state);
             });
         });
     });
@@ -461,6 +524,29 @@ function respond(res, settings, err) {
         }
     }
 
+    function setFeedback(feedback) {
+        // Early exit for pages without feedback
+        if (feedback === undefined) {
+            return [
+                '<section id="feedback" class="hidden">',
+                '</section>',
+            ].join('\n');
+        }
+
+        if (feedback.message !== undefined || feedback.state !== undefined) {
+            return [
+                '<section id="feedback" class="' + feedback.state + '">',
+                    '<span class="feedback-msg">' + feedback.message + '</span>',
+                '</section>',
+            ].join('\n');
+        } else {
+            return [
+                '<section id="feedback" class="hidden">',
+                '</section>',
+            ].join('\n');
+        }
+    }
+
     // Checks whether user is logged in
      function getUserNav(activeUser) {
         if (activeUser) {
@@ -480,21 +566,6 @@ function respond(res, settings, err) {
         }
     }
 
-    // Swtiches navigation based on page user is currently on
-    function getPageNav(page) {
-
-        /*
-            user can't add favs if not logged in, hide if no session is available
-        */
-
-        return [
-            '<ul>',
-                '<li><a href="/results/">Resultaten</a></li>',
-                '<li><a href="/favorites/">Favorieten</a></li>',
-            '</ul>'
-        ].join('\n');
-    }
-
     res.set('Content-Type', 'text/html');
     res.end([
         '<!doctype html>',
@@ -511,6 +582,7 @@ function respond(res, settings, err) {
                 '<link rel="stylesheet" href="/static/style/main.css">',
                 '<script src="/static/script/main.js" defer></script>',
             '</head>',
+            setFeedback(settings.feedback),
             '<header ' + getSplash(settings.page) + '>',
                 '<section class="top">',
                     '<funda-logo></funda-logo>',
@@ -758,6 +830,11 @@ function renderInterests(data) {
     if (data) {
         var results = JSON.parse(data);
 
+        // Early exit if user hasn't added any favorites
+        if (results.length === 0) {
+            return '';
+        }
+
         function getInterests() {
             var interestsList = [];
 
@@ -813,8 +890,6 @@ function renderInterests(data) {
                 getInterests(),
             '</ul>',
         ].join('\n');
-    } else {
-        return '';
     }
 }
 
