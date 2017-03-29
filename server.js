@@ -18,6 +18,7 @@ if (!apiKey) {
 }
 
 // Makes it possible to server static files assets
+app.use('/', express.static(path.join(__dirname, '')))
 app.use('/static', express.static(path.join(__dirname, 'public')))
 
 // Body parsing middleware
@@ -506,7 +507,7 @@ function respond(res, settings, err) {
                 '<title>Funda SPA Prototype</title>',
                 '<link rel="icon" type="image/ico" href="/static/img/favicon.ico">',
                 '<link rel="apple-touch-icon" sizes="256x256" href="/static/img/apple-touch-icon.png">',
-                '<link rel="manifest" href="/static/manifest.json">',
+                '<link rel="manifest" href="manifest.json">',
                 '<link rel="import" href="/static/components/funda-logo.html" />',
                 '<link rel="stylesheet" href="/static/style/main.css">',
                 '<script src="/static/script/main.js" defer></script>',
