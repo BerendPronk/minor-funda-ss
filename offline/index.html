@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <meta name="theme-color" content="#70cdf5">
+    <title>Funda SPA Prototype</title>
+    <link rel="icon" type="image/ico" href="/static/img/favicon.ico">
+    <link rel="apple-touch-icon" sizes="256x256" href="/static/img/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <link rel="import" href="/static/components/funda-logo.html" />
+    <link rel="stylesheet" href="/static/style/main.css">
+    <script src="/static/script/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <section class="top">
+            <funda-logo></funda-logo>
+        </section>
+    </header>
+    <section id="offline">
+        <h1>Offline.</h1>
+        <p>
+            Je bent momenteel niet verbonden met onze servers.
+        </p>
+        <p>
+            Dit zou aan ons kunnen liggen, maar wellicht ben je zelf niet verbonden met het web.
+        </p>
+        <a href="javascript:window.location.href=window.location.href" class="btn">Probeer te verbinden</a>
+    </section>
+</body>
+</html>
