@@ -18,6 +18,7 @@
   ],
   "dependencies": {
     "body-parser": "^1.17.1",
+    "compression": "^1.6.2",
     "dotenv": "^4.0.0",
     "express": "^4.14.0",
     "express-myconnection": "^1.0.4",
@@ -26,8 +27,15 @@
     "path": "^0.12.7",
     "request": "^2.81.0"
   },
+  "devDependencies": {
+    "browserify": "^14.1.0",
+    "minifier": "^0.8.1",
+    "uglify-js": "^2.8.18"
+  },
   "scripts": {
-    "build": "browserify ./public/script/main.js -o ./public/script/bundle.js",
-    "start": "nodemon server.js"
+    "minify:css": "minify ./public/style/main.css",
+    "minify:js": "browserify ./public/script/main.js -o ./public/script/browserified.js && uglifyjs ./public/script/browserified.js -o ./public/script/bundle.js --compress --mangle",
+    "build": "npm run minify:css && npm run minify:js",
+    "start": "npm run build && nodemon server.js"
   }
 }
