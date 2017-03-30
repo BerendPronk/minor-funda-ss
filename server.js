@@ -1,5 +1,6 @@
 'use strict';
 
+var compression = require('compression');
 var path = require('path');
 var request = require('request');
 var bodyParser = require('body-parser');
@@ -16,6 +17,9 @@ var apiKey = process.env.FUNDA_API_KEY;
 if (!apiKey) {
     throw new Error('No `FUNDA_API_KEY` found in .env, please contact me via berendpronk199@gmail.com');
 }
+
+// Compress the application via gzip
+app.use(compression());
 
 // Makes it possible to server static files assets
 app.use('/static', express.static(path.join(__dirname, 'public')));
@@ -567,8 +571,13 @@ function respond(res, settings, err) {
             '<link rel="apple-touch-icon" sizes="256x256" href="/static/img/apple-touch-icon.png">',
             '<link rel="manifest" href="/static/manifest.json">',
             '<link rel="import" href="/static/components/funda-logo.html" />',
-            '<link rel="stylesheet" href="/static/style/main.css">',
-            '<script src="/static/script/main.js" defer></script>',
+            '<style>',
+                '@charset "UTF-8";fieldset,ul{padding:0}body,button,header .user-nav a{background-color:#f8b000}*{box-sizing:border-box}body,html{width:100%;overflow-x:hidden}body{position:relative;z-index:0;margin:0;font-family:sans-serif;font-size:1em;color:#333}a{text-decoration:none;color:#40bcf2}button{margin-bottom:1rem;padding:.5em;font-size:1.1em;color:#fff;border:none;border-radius:.25rem}fieldset{margin:0;border:none}input,label{display:block}input[type=number],input[type=text]{margin-top:.5rem;margin-bottom:1rem;padding:.5em;font-size:1em;border:1px solid #999;border-radius:.25rem}header{display:flex;flex-wrap:wrap;align-items:center;background-color:#a0def8;box-shadow:none;transform:translateY(0)}header.splash{position:fixed;z-index:2;width:100vw;box-shadow:0 .1rem .25rem rgba(0,0,0,.25);transform:translateY(2.5rem)}header>*{width:100%;padding:.5rem 1rem}header .top{display:flex;justify-content:space-between}header .user-nav ul{display:flex;margin:0}header .user-nav li{display:flex;align-items:center;margin-right:.5rem;list-style-type:none}header .user-nav li:last-of-type{margin-right:0}header .user-nav a{padding:.5rem;border-radius:.25rem;color:#fff;display:block}header form{display:flex;flex-wrap:wrap;padding:1rem;background-color:#70cdf5}header form fieldset{position:relative;width:100%;margin:0 0 1rem;padding:0;border:none}header form fieldset:last-of-type{margin-bottom:0}header form label{display:block;margin-bottom:.4em;font-size:1.2em;color:#fff}header form button,header form input[type=number],header form input[type=text]{width:100%;margin:initial;padding:1rem;font-size:1.1em;border-radius:.25rem;border:none}header form button#submit{margin-top:1rem;margin-bottom:0;color:#fff;background-color:#f8b000}@media (min-width:48em){header form{justify-content:center}header form fieldset{width:55%}header form button#submit{width:10rem}}header form #filter{display:flex;flex-wrap:wrap;justify-content:space-between;width:100%}@media (min-width:48em){header form #filter{width:55%}}header form #filter .filter-text{display:flex;flex-wrap:nowrap;justify-content:space-between}header form #filter .filter-radio{display:flex;width:60%}@media (min-width:48em){header form #filter .filter-text{justify-content:flex-start}header form #filter .filter-radio{width:initial;margin-right:1rem}}header form #filter .filter-radio label:last-child{border-radius:0 .25rem .25rem 0}header form #filter .filter-price{width:100%;height:0;overflow-y:hidden}header form #filter .filter-text{align-items:baseline;margin-top:1rem}header form #filter .filter-text label{position:relative;width:35%;padding-right:1rem;text-align:right}header form #filter .filter-text label::after{position:absolute;z-index:1;right:-1.5rem;color:#999;content:"€"}header form #filter .filter-text .filter-text-input{position:relative;width:65%;overflow-x:hidden}header form #filter .filter-text .filter-text-input input{width:100%;padding-left:2rem}body>section,footer{position:relative;width:100vw}header form #filter label[data-input=checkbox],header form #filter label[data-input=radio]{position:relative;margin-bottom:0;padding:1em;border-radius:.25rem;background-color:#40bcf2}header form #filter label[data-input=radio]{border-radius:.25rem 0 0 .25rem}header form #filter input{width:initial}.hidden,header form #filter input[type=checkbox],header form #filter input[type=radio]{display:none}header form #filter input[type=radio]:checked+label{background-color:#11acee}body>section{display:block;padding:1rem;background-color:#fff}@media (min-width:60em){body>section{padding-right:calc(1rem + 17px)}}#feedback{padding:1rem 3rem;font-weight:700;line-height:1.4em;text-align:center;color:#fff;background-color:#70cdf5}footer{display:none;height:100vh;overflow:hidden;opacity:.5}footer #mosaic{display:flex;flex-wrap:wrap;margin:0;transform:translateY(0);animation:autoscroll 50s infinite alternate}footer #mosaic li{display:block;width:calc(100% / 3);height:10rem;filter:blur(1px)}footer #mosaic li img{filter:sepia(100%)}@media (min-width:48em){footer #mosaic{animation:autoscroll 20s infinite alternate}footer #mosaic li{width:25%}footer #mosaic li img{width:100%}}@media (min-width:60em){footer #mosaic{animation:autoscroll 20s infinite alternate}footer #mosaic li{width:calc(100% / 5)}}@keyframes autoscroll{to{transform:translateY(calc(-100% + 100vh))}}',
+            '</style>',
+            '<noscript>',
+                '<link rel="stylesheet" href="/static/style/main.min.css">',
+            '</noscript>',
+            '<script src="/static/script/bundle.js" defer></script>',
         '</head>',
         '<body>',
             setFeedback(settings.feedback),
@@ -631,7 +640,8 @@ function respond(res, settings, err) {
 function renderReqPage(page, data, favorites, interests) {
     switch (page) {
         case 'splash':
-            return renderMosaic(data);
+            // Disables mosaic rendering ofr better performance
+            // return renderMosaic(data);
         break;
         case 'user/register':
             return renderUserPage('register');
