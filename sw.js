@@ -7,8 +7,8 @@ var swConfig = {
         '/static/img/favicon.ico',
         '/static/img/apple-touch-icon.png',
         '/static/components/funda-logo.html',
-        '/static/style/main.css',
-        '/static/script/main.js'
+        '/static/style/main.min.css',
+        '/static/script/bundle.js'
     ]
 };
 
