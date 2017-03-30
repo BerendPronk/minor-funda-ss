@@ -1,3 +1,6 @@
+var loadCSS = require('./loadcss.js');
+var stylesheet = loadCSS('/static/style/main.min.css');
+
 if ('serviceWorker' in navigator) {
 	window.addEventListener('load', function() {
 		navigator.serviceWorker.register('/sw.js')
