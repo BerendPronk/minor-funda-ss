@@ -80,5 +80,6 @@ If you happen to notice any flaw on my part that couldn't be left undone, feel f
 ## License
 [MIT](https://github.com/BerendPronk/minor-funda-ss/blob/master/LICENSE.md)
 
-Copyright Berend Pronk  
+Copyright - Berend Pronk
+
 2017
