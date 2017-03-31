@@ -29,7 +29,6 @@ priceInputs.forEach(function(input) {
 	});
 })
 
-
 // Service worker registration
 if ('serviceWorker' in navigator) {
 	window.addEventListener('load', function() {
