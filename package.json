@@ -36,6 +36,6 @@
     "minify:css": "minify ./public/style/main.css",
     "minify:js": "browserify ./public/script/main.js -o ./public/script/browserified.js && uglifyjs ./public/script/browserified.js -o ./public/script/bundle.js --compress --mangle",
     "build": "npm run minify:css && npm run minify:js",
-    "start": "npm run build && nodemon server.js"
+    "start": "nodemon server.js"
   }
 }
