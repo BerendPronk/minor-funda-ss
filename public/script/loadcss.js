@@ -1,3 +1,5 @@
+// Asynchronous loading of stylesheets
+
 /*
 	Source: Martin Wolf
 	(https://martinwolf.org/blog/2014/12/load-css-asynchronously-with-loadcss)
