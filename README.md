@@ -6,6 +6,11 @@ The goal of this project was to enhance on the performance of the client-side ap
 
 [Funda: Coding Challenge 2017](https://github.com/BerendPronk/minor-funda)
 
+## Demo
+The API-key I received to implement in this prototype should remain private. That makes it not easiliy possible to provide you with a live demo to experience. It would've been for just a few months after the completion of the project anyway, though, since the API-key was to expire. That's why I recorded a demo for you to see on YouTube.
+
+[Funda: Coding Challenge 2017 - Server-side Prototype](https://www.youtube.com/watch?v=R-7a1KPatyg)
+
 ## First steps
 If you do decide to take a look at the work-in-progress server-side application, you must clone this repository first. You can do this by typing the following command in your terminal:  
 
