@@ -1,4 +1,4 @@
-# Funda: Coding Challenge 2017 - Server Side
+# Funda: Coding Challenge 2017 - Server-side
 An attempt to progressively enhance my previously built application prototype for Funda, by removing client-side JavaScript entirely.
 You can take a glimpse at this project by clicking the link below this intro.
 
