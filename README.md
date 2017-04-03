@@ -85,14 +85,10 @@ All non-cachced pages will result in an offline-page that shows a message on the
 ## Feedback
 If you happen to notice any flaw on my part that couldn't be left undone, feel free to notify me by creating an issue on this repository. Pull request are also very much appreciated.
 
----
-
 ## Wishlist for the future
 - I'd like to divide the `server.js` file into chunks, for a better overview during development.
 - I want the application to be served over HTTP2, but I need to figure out how exactly first.
 - I insist that this application should run on practically any device, so I need to do lots of tests, generating issues to then solve.
-
----
 
 ## License
 [MIT](https://github.com/BerendPronk/minor-funda-ss/blob/master/LICENSE.md)
