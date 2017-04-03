@@ -53,8 +53,6 @@ This app uses [`Express`](https://www.npmjs.com/package/express) for handling re
 
 The templating / DOM-structure per page consists of a HTML string given as a response to the requested page.
 
----
-
 ### Storage
 The previous application made use of `localStorage` for storing favorites from the user. Mainly done for prototyping purposes, to present the possiblilties with saving and retrieving storage. This web API is available locally, which makes it impossible to use on a server. I needed to think of an alternative for this, some sort of database.  
 There are many possible databases to be used with Node.js. Since I wanted to create no additional client-side JavaScript, databases like [`PouchDB`](https://www.npmjs.com/package/pouchdb) were no option for me. The application needed to have a relational database, and I chose to use [`MySQL`](https://www.npmjs.com/package/mysql).
@@ -64,6 +62,8 @@ There are many possible databases to be used with Node.js. Since I wanted to cre
 
 ### Client-side enhancement
 After I was done converting the application, bits of JavaScript were added to improve on the experience and on performance. Without these added functions, users would be unable to: close feedback messages, experience thousands-notation in the price filters and receive assets faster than usual, because of the asynchronous loading of the CSS-file. 
+
+---
 
 ## Performance
 In this minor I learned a lot about increasing performance on website and applications. I knew which principles I needed to add to this application in order to improve on the loadtime. Not everything that I learned during this minor was necessary for this prototype, but the one that were, are described here.
@@ -80,13 +80,19 @@ My first time putting a service worker to use. The concept of it is fairly new, 
 I got the Funda application to work with a service worker, which caches static files and the pages the user has been to. Meaning a user is able to see his/her favorites from the database when disconnected from the internet.  
 All non-cachced pages will result in an offline-page that shows a message on the situation and provides the user with a 'Try again' button.
 
+---
+
 ## Feedback
 If you happen to notice any flaw on my part that couldn't be left undone, feel free to notify me by creating an issue on this repository. Pull request are also very much appreciated.
+
+---
 
 ## Wishlist for the future
 - I'd like to divide the `server.js` file into chunks, for a better overview during development.
 - I want the application to be served over HTTP2, but I need to figure out how exactly first.
 - I insist that this application should run on practically any device, so I need to do lots of tests, generating issues to then solve.
+
+---
 
 ## License
 [MIT](https://github.com/BerendPronk/minor-funda-ss/blob/master/LICENSE.md)
