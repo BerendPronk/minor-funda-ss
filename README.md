@@ -11,6 +11,8 @@ The API-key I received to implement in this prototype should remain private. Tha
 
 [Funda: Coding Challenge 2017 - Server-side Prototype](https://www.youtube.com/watch?v=R-7a1KPatyg)
 
+---
+
 ## First steps
 If you do decide to take a look at the work-in-progress server-side application, you must clone this repository first. You can do this by typing the following command in your terminal:  
 
@@ -38,6 +40,8 @@ $ nodemon server
 
 Keep in mind that you need a `secret` API-key in order to see the prototype in action. Unfortunately, I can't share it publically. I also can't share one via a private message. Either you have one, or you do not.
 
+---
+
 ## Features
 As mentioned before, this application works the same as the [previous one I made for Funda](https://github.com/BerendPronk/minor-funda), but the routing, templating and handling of API-requests are all done server-side. For this I used Node.js. I have worked with Node.js before in the past, that was for a school project a few years prior to this minor.  
 Starting out with Node.js again was pretty tricky getting used to. However, the logic behind it made more sense to me than it did years ago, despite not working with it at all.
@@ -48,6 +52,8 @@ I challenged myself not to use any client-side JavaScript, and I managed to do s
 This app uses [`Express`](https://www.npmjs.com/package/express) for handling requests on the server, this includes navigation to the parameter given in the request. Any `GET`-request be handled very efficiently. The same goes fore `POST`-requests, but a [`body-parser`](https://www.npmjs.com/package/body-parser) needs to be installed first, though.
 
 The templating / DOM-structure per page consists of a HTML string given as a response to the requested page.
+
+---
 
 ### Storage
 The previous application made use of `localStorage` for storing favorites from the user. Mainly done for prototyping purposes, to present the possiblilties with saving and retrieving storage. This web API is available locally, which makes it impossible to use on a server. I needed to think of an alternative for this, some sort of database.  
