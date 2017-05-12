@@ -32,7 +32,7 @@ There are some dependencies not included in this repository. You need to install
 $ npm install
 ```
 
-When the progress bar is entirely filled will mean that the installation of the packages was successful. You can now start the application by setting up the server. The app will be server on http://localhost:2000.
+When the progress bar is entirely filled, it means that the installation of the packages was successful. You can now start the application by setting up the server. The app will be served on http://localhost:2000.
 
 ```shell
 $ nodemon server
